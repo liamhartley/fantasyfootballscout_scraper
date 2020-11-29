@@ -7,113 +7,87 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] [%(leve
 logger = logging.getLogger(__name__)
 
 
-def pull_fantasyfootballscout_lineups(url):
+def create_lineup_dictionary(raw_data):
+    '''
+
+    :param raw_data:
+    :return:
+    '''
+
     lineup_dictionary = {}
-    html = requests.get(url).text
-    soup = BeautifulSoup(html, "html.parser")
-    raw_data = soup.find_all("div", {"class": re.compile('formation.*')})
+    key = 0
 
-    team_id = 0
     for team in raw_data:
-        lineup_dictionary[team_id] = decode_data(team.text)
-        # for team_name in epl_teams:
-        #     lineup_dictionary[team_name] = (team.text).split()
-        team_id += 1
+        lineup_dictionary[key] = team.text.split('  ')[1:]
+        assert len(lineup_dictionary[key]) == 11
+        key += 1
 
-    # fantasy_football_lineup_mapping = fatasy_football_lineup_mapper()
-    # for team_numeric in range(0, 20):
-    #     lineup_dictionary[fantasy_football_lineup_mapping[team_numeric]] = lineup_dictionary[team_numeric]
-    #     del lineup_dictionary[team_numeric]
-
+    assert len(lineup_dictionary) == 20
     return lineup_dictionary
 
 
-def decode_data(match):
-    """Returns data in the match's first group decoded to JSON."""
-    trans_data = match.split()
-    return trans_data
+def create_team_mapper(raw_data):
+    '''
 
-#######
+    :param raw_data:
+    :return:
+    '''
 
-def predict_lineups():
-    logger.info('############# Pulling lineup predictions from Fantasy Football Scout #############')
+    team_map = {}
+    for team in range(2, 22):
+        team_map[team-2] = raw_data[team].text.split('Next')[0]
 
-    url = 'https://www.fantasyfootballscout.co.uk/team-news/'
-    lineup_data = pull_fantasyfootballscout_lineups(url)
+    assert len(team_map) == 20
+    return team_map
 
-    # predicted_lineups_id = epl_teams_fantasyfootballscout()
-    # lineup_dictionary = lineup_database()
-    #
-    # # TODO make this into its own function which outputs predited_lineups_id
-    # # For every team
-    # for team in predicted_lineups_id.keys():
-    #     lineup = lineup_data[team]
-    #     previous_player = ''
-    #     # For every player in that team
-    #     for player_id in lineup:
-    #         player = str(player_id)
-    #         if f'{team}_{player}' in lineup_dictionary:
-    #             predicted_lineups_id[team].append(lineup_dictionary[f'{team}_{player}'])
-    #         elif f'{team}_{previous_player} {player}' in lineup_dictionary:
-    #             predicted_lineups_id[team].append(lineup_dictionary[f'{team}_{previous_player} {player}'])
-    #         else:
-    #             previous_player = player
-    #
-    # # # Add team names to the dictionary
-    # # team_names = epl_teams_list()
-    # # for team in range(0, 20):
-    # #     replace_names = predicted_lineups_id[team]
-    # #     predicted_lineups_id[team_names[team]] = replace_names
-    # # for team in range(0, 20):
-    # #     del predicted_lineups_id[team]
-    #
-    # # Check all players were pulled
-    # for team in predicted_lineups_id:
-    #     if len(predicted_lineups_id[team]) <= 10:
-    #         logger.warning(f'Team: {team} only has {len(predicted_lineups_id[team])} players.')
-    #         logger.warning(f'Please edit the lineup_database to amend this.')
-    #
-    # logger.info(f'Predicted lineups id returned: {predicted_lineups_id}')
-    #
-    # predicted_lineups = {}
-    # inverse_lineups = inverse_lineup_database()
-    # for team in predicted_lineups_id.keys():
-    #     logger.info(f'Team: {team}')
-    #     player_list = []
-    #     for player in predicted_lineups_id[team]:
-    #         if player in predicted_lineups_id[team]:
-    #             player_list.append(inverse_lineups[player])
-    #         else:
-    #             raise ValueError('Missing player from inverse database!')
-    #     predicted_lineups[team] = player_list
-    #     logger.info(f'Players: {player_list}')
-    #
-    # return predicted_lineups_id
+
+def create_final_dictionary(lineups_data, mapping_dictionary):
+    '''
+    This function uses the mapping dictionary to assign the team names to each predicted lineup.
+    :param lineups_data:
+    :param mapping_dictionary:
+    :return:
+    '''
+
+    formatted_dictionary = {}
+    for key in range(0, 20):
+        formatted_dictionary[mapping_dictionary[key]] = lineups_data[key]
+
+    assert len(formatted_dictionary) == 20
+
+    return formatted_dictionary
+
+
+def pull_fantasyfootballscout_lineups(url='https://www.fantasyfootballscout.co.uk/team-news/'):
+    '''
+    This function scrapes the latest predicted lineups from fantasyfootballscout.
+    :param url: The url for where the predicted lineups are located.
+    :return: A dictionary of the format {team1: [player1, player2... player11], ... team20: [...] }
+    '''
+
+    # Scrape the raw HTML and pass it into BeautifulSoup
+    html = requests.get(url).text
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Raw data related to the teams predicted lineup / formation
+    lineups_raw = soup.find_all("div", {"class": re.compile('formation.*')})
+    # Raw data which includes team names
+    team_names_raw = soup.find_all('header')
+
+    # Parse all of the raw data
+    lineup_dictionary = create_lineup_dictionary(raw_data=lineups_raw)
+    team_names_mapper = create_team_mapper(raw_data=team_names_raw)
+
+    # Match the team lineups to their respective team names
+    final_dictionary = create_final_dictionary(lineups_data=lineup_dictionary,
+                                               mapping_dictionary=team_names_mapper)
+
+    return final_dictionary
 
 
 if __name__ == '__main__':
-    predict_lineups()
+    logger.info('Pulling lineup predictions from Fantasy Football Scout')
+    pull_fantasyfootballscout_lineups()
 
-# def fatasy_football_lineup_mapper():
-#     teams = {0: 'Arsenal',
-#              1: 'Aston Villa',
-#              2: 'Brighton',
-#              3: 'Burnley',
-#              4: 'Chelsea',
-#              5: 'Crystal Palace',
-#              6: 'Everton',
-#              7: 'Fulham',
-#              8: 'Leeds United',
-#              9: 'Leicester City',
-#              10: 'Liverpool',
-#              11: 'Manchester City',
-#              12: 'Manchester United',
-#              13: 'Newcastle United',
-#              14: 'Sheffield United',
-#              15: 'Southampton',
-#              16: 'Tottenham Hotspur',
-#              17: 'West Bromwich Albion',
-#              18: 'West Ham',
-#              19: 'Wolverhampton'}
-#     return teams
-#
+
+    # TODO split the functions out at the top to find indention error and add more docstrings
